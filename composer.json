@@ -1,59 +1,75 @@
 {
-  "name": "typedcms/php-starter-kit",
-  "description": "A simple starter kit for using TypedCMS with PHP.",
-  "keywords": [
-    "TypedCMS",
-    "PHP",
-    "Starter Kit",
-    "SDK",
-    "API"
-  ],
-  "homepage": "https://typedcms.com/technologies/php",
-  "license": "MIT",
-  "authors": [
-    {
-      "name": "George Palmer",
-      "email": "george@typedcms.com"
-    }
-  ],
-  "require": {
-    "php": "^8.2",
-    "ext-ctype": "*",
-    "ext-json": "*",
-    "guzzlehttp/guzzle": "^7.0",
-    "kamermans/guzzle-oauth2-subscriber": "^1.0",
-    "swisnl/json-api-client": "2.5.0",
-    "illuminate/container": "^10.0|^11.0|^12.0",
-    "illuminate/collections": "^10.0|^11.0|^12.0",
-    "nesbot/carbon": "^2.71|^3.8.6"
-  },
-  "require-dev": {
-    "laravel/pint": "^1.21",
-    "phpunit/phpunit": "^11.0",
-    "phpstan/phpstan": "^2.1",
-    "mockery/mockery": "^1.6"
-  },
-  "autoload": {
-    "psr-4": {
-      "TypedCMS\\PHPStarterKit\\": "src/"
-    }
-  },
-  "autoload-dev": {
-    "psr-4": {
-      "TypedCMS\\PHPStarterKit\\Tests\\": "tests/"
-    }
-  },
-  "scripts": {
-    "lint": [
-      "@php vendor/bin/phpstan analyse"
+    "name": "typdy/php-starter-kit",
+    "description": "A comprehensive PHP Starter Kit for typdy client applications.",
+    "keywords": [
+        "typdy",
+        "Headless CMS",
+        "Starter Kit",
+        "SDK",
+        "PHP",
+        "API",
+        "JSON API",
+        "Cache",
+        "Repositories",
+        "Models",
+        "Webhooks"
     ],
-    "test": [
-      "@php vendor/bin/phpunit"
-    ]
-  },
-  "config": {
-    "allow-plugins": {
-      "php-http/discovery": true
+    "homepage": "https://typdy.com/docs/starter-kit/php",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "George Palmer",
+            "email": "george@typdy.com"
+        }
+    ],
+    "require": {
+        "php": "^8.5",
+        "ext-ctype": "*",
+        "ext-json": "*",
+        "guzzlehttp/guzzle": "^7.10",
+        "kamermans/guzzle-oauth2-subscriber": "^1.1",
+        "nesbot/carbon": "^2.71|^3.8.6",
+        "psr-discovery/http-client-implementations": "^1.4",
+        "psr-discovery/http-factory-implementations": "^1.2"
+    },
+    "require-dev": {
+        "mockery/mockery": "^1.6",
+        "illuminate/collections": "^13.0",
+        "illuminate/container": "^13.0",
+        "illuminate/pagination": "^13.0",
+        "carthage-software/mago": "^1.44.0",
+        "pestphp/pest": "^5.1"
+    },
+    "autoload": {
+        "psr-4": {
+            "Typdy\\StarterKit\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Typdy\\StarterKit\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "fmt": "mago fmt",
+        "analyze": "mago analyze",
+        "lint:fix": "mago lint --fix --format-after-fix",
+        "lint": "mago lint",
+        "test": [
+            "@php vendor/bin/pest"
+        ],
+        "qa": [
+            "composer fmt",
+            "composer analyze",
+            "composer test",
+            "composer lint:fix",
+            "composer lint"
+        ]
+    },
+    "config": {
+        "allow-plugins": {
+            "php-http/discovery": true,
+            "pestphp/pest-plugin": true
+        }
     }
-  }
 }

@@ -2,190 +2,92 @@
 
 declare(strict_types=1);
 
-namespace TypedCMS\PHPStarterKit\Tests\Unit\Repositories;
+use Typdy\StarterKit\Api\Contracts\Client;
+use Typdy\StarterKit\Attributes\Collection as CollectionAttribute;
+use Typdy\StarterKit\Attributes\Project;
+use Typdy\StarterKit\Containers\Contracts\Container;
+use Typdy\StarterKit\Repositories\Repository;
+use Typdy\StarterKit\Tests\Unit\Repositories\Fixtures\TestApiRepo;
+use Typdy\StarterKit\Typdy;
+use Typdy\StarterKit\TypdyConfig;
 
-use Mockery\MockInterface;
-use PHPUnit\Framework\Attributes\Test;
-use Psr\Http\Message\ResponseInterface;
-use RuntimeException;
-use Swis\JsonApi\Client\Document;
-use Swis\JsonApi\Client\DocumentFactory;
-use Swis\JsonApi\Client\Interfaces\DocumentClientInterface;
-use Swis\JsonApi\Client\Interfaces\DocumentInterface;
-use TypedCMS\PHPStarterKit\StarterKit;
-use TypedCMS\PHPStarterKit\Tests\TestCase;
-use TypedCMS\PHPStarterKit\Tests\Unit\Repositories\Fakes\Repository;
+beforeEach(function () {
+    Typdy::$config = new TypdyConfig(
+        team: 'test-team',
+        project: 'test-project',
+    );
 
-final class RepositoryTest extends TestCase
-{
-    private string $apiEndpoint;
+    $mockClient = mock(Client::class);
+    $mockContainer = mock(Container::class);
 
-    private string $mapiEndpoint;
+    $mockContainer
+        ->shouldReceive('make')
+        ->with(Client::class)
+        ->andReturn($mockClient);
 
-    protected function setUp(): void
-    {
-        $this->apiEndpoint = Repository::$apiEndpoint;
-        $this->mapiEndpoint = Repository::$mapiEndpoint;
+    Typdy::$container = $mockContainer;
+});
 
-        StarterKit::configure(['base_uri' => '@foo/bar']);
-    }
+afterEach(function () {
+    Typdy::$container = null;
+});
 
-    #[Test]
-    public function itUsesTheSpecifiedEndpoint(): void
-    {
-        /** @var DocumentClientInterface $client */
-        $client = $this->mock(DocumentClientInterface::class);
+it('can be instantiated and has a client', function () {
+    $repo = new TestApiRepo();
 
-        $repository = new Repository($client, new DocumentFactory);
+    expect($repo->client)->toBeInstanceOf(Client::class);
+});
 
-        $this->assertSame('things', $repository->getSpecifiedEndpoint());
-    }
+it('is not a globals repository', function () {
+    $repo = new TestApiRepo();
 
-    #[Test]
-    public function itUsesApiEndpoints(): void
-    {
-        /** @var DocumentClientInterface $client */
-        $client = $this->mock(DocumentClientInterface::class);
+    expect($repo->isGlobal())->toBeFalse();
+});
 
-        $repository = new Repository($client, new DocumentFactory);
+it('throws if a blueprint is not set', function () {
+    $repo = new class extends Repository {};
 
-        $this->assertSame($this->getApiEndpoint('things'), $repository->getEndpoint());
-        $this->assertSame('things', $repository->getSpecifiedEndpoint());
-    }
+    $repo->getBlueprint();
+})->throws(LogicException::class, 'Blueprint attribute not found');
 
-    #[Test]
-    public function itUsesMapiEndpoints(): void
-    {
-        /** @var DocumentClientInterface $client */
-        $client = $this->mock(DocumentClientInterface::class);
+it('guesses the collection when not provided', function () {
+    $repo = new TestApiRepo();
 
-        $repository = new Repository($client, new DocumentFactory);
+    expect($repo->getCollection())->toBe('tests');
+});
 
-        $this->assertSame($this->getMapiEndpoint('things'), $repository->mapi()->getEndpoint());
-    }
+it('returns the collection when provided', function () {
+    $repo = new
+        #[CollectionAttribute('testing')]
+        class extends Repository {};
 
-    #[Test]
-    public function itGetsAll(): void
-    {
-        $document = new Document;
+    expect($repo->getCollection())->toBe('testing');
+});
 
-        /** @var DocumentClientInterface $client */
-        $client = $this->mock(DocumentClientInterface::class,
-            function (MockInterface $mock) use ($document) {
-                $mock->shouldReceive('get')
-                    ->with($this->getApiEndpoint('things?foo=bar&all=1'), [])
-                    ->andReturn($document)
-                    ->once();
-            }
-        );
+it('falls back to globally configured team and project', function () {
+    $repo = new TestApiRepo();
 
-        $repository = new Repository($client, new DocumentFactory);
+    expect($repo->getTeam())->toBe('test-team');
+    expect($repo->getProject())->toBe('test-project');
+});
 
-        $this->assertSame($document, $repository->all(['foo' => 'bar']));
-    }
+it('overrides team and project when set', function () {
+    $repo = new
+        #[Project('the-a-team', 'project-x')]
+        class extends Repository {};
 
-    #[Test]
-    public function itTakesOne(): void
-    {
-        $document = new Document;
+    expect($repo->getTeam())->toBe('the-a-team');
+    expect($repo->getProject())->toBe('project-x');
+});
 
-        /** @var DocumentClientInterface $client */
-        $client = $this->mock(DocumentClientInterface::class,
-            function (MockInterface $mock) use ($document) {
-                $mock->shouldReceive('get')
-                    ->with($this->getApiEndpoint('things?foo=bar'), [])
-                    ->andReturn($document)
-                    ->once();
-            }
-        );
+it('generates a signature', function () {
+    $repo = new TestApiRepo();
 
-        $repository = new Repository($client, new DocumentFactory);
+    expect($repo->getSignature())->toBe('test-team:test-project:test');
+});
 
-        $this->assertSame($document, $repository->take(['foo' => 'bar']));
-    }
+it('throws if the blueprint is missing for signatures', function () {
+    $repo = new class extends Repository {};
 
-    #[Test]
-    public function itFindsOne(): void
-    {
-        $document = new Document;
-
-        /** @var DocumentClientInterface $client */
-        $client = $this->mock(DocumentClientInterface::class,
-            function (MockInterface $mock) use ($document) {
-                $mock->shouldReceive('get')
-                    ->with($this->getApiEndpoint('things/foo?bar=baz'), [])
-                    ->andReturn($document)
-                    ->once();
-            }
-        );
-
-        $repository = new Repository($client, new DocumentFactory);
-
-        $this->assertSame($document, $repository->find('foo', ['bar' => 'baz']));
-    }
-
-    #[Test]
-    public function itCanFindOneWithFindOrFail(): void
-    {
-        $document = new Document;
-
-        /** @var DocumentClientInterface $client */
-        $client = $this->mock(DocumentClientInterface::class,
-            function (MockInterface $mock) use ($document) {
-                $mock->shouldReceive('get')
-                    ->with($this->getApiEndpoint('things/foo?bar=baz'), [])
-                    ->andReturn($document)
-                    ->once();
-            }
-        );
-
-        $repository = new Repository($client, new DocumentFactory);
-
-        $this->assertSame($document, $repository->findOrFail('foo', ['bar' => 'baz']));
-    }
-
-    #[Test]
-    public function itCanFailWithFindOrFail(): void
-    {
-        $response = $this->mock(ResponseInterface::class,
-            static function (MockInterface $mock) {
-                $mock->shouldReceive('getStatusCode')->andReturn(404)->once();
-            }
-        );
-
-        $document = $this->mock(DocumentInterface::class,
-            static function (MockInterface $mock) use ($response) {
-
-                $mock->shouldReceive('hasErrors')->andReturn(true)->once();
-
-                $mock->shouldReceive('getResponse')->andReturn($response)->once();
-            }
-        );
-
-        /** @var DocumentClientInterface $client */
-        $client = $this->mock(DocumentClientInterface::class,
-            function (MockInterface $mock) use ($document) {
-                $mock->shouldReceive('get')
-                    ->with($this->getApiEndpoint('things/foo?bar=baz'))
-                    ->andReturn($document)
-                    ->once();
-            }
-        );
-
-        $repository = new Repository($client, new DocumentFactory);
-
-        $this->expectException(RuntimeException::class);
-
-        $repository->findOrFail('foo', ['bar' => 'baz']);
-    }
-
-    private function getApiEndpoint(string $append): string
-    {
-        return "{$this->apiEndpoint}@foo/bar/{$append}";
-    }
-
-    private function getMapiEndpoint(string $append): string
-    {
-        return "{$this->mapiEndpoint}@foo/bar/{$append}";
-    }
-}
+    $repo->getSignature();
+})->throws(LogicException::class, 'Blueprint attribute not found');

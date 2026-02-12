@@ -2,40 +2,33 @@
 
 declare(strict_types=1);
 
-namespace TypedCMS\PHPStarterKit\Tests\Unit\Models;
+use Typdy\StarterKit\Models\Media;
 
-use PHPUnit\Framework\Attributes\Test;
-use TypedCMS\PHPStarterKit\Models\Media;
-use TypedCMS\PHPStarterKit\Tests\TestCase;
+beforeEach(function () {
+    $this->media = new Media();
+    $this->media->name = 'test.webp';
+    $this->media->url = 'https://cdn.tcms.io/somepath/test.webp';
+    $this->media->conversions = [
+        'tiny-thumbnail' => 'https://cdn.tcms.io/somepath/test-tiny-thumbnail.webp',
+        'small-thumbnail' => 'https://cdn.tcms.io/somepath/test-small-thumbnail.webp',
+        'thumbnail' => 'https://cdn.tcms.io/somepath/test-thumbnail.webp',
+        'large-thumbnail' => 'https://cdn.tcms.io/somepath/test-large-thumbnail.webp',
+        'huge-thumbnail' => 'https://cdn.tcms.io/somepath/test-huge-thumbnail.webp',
+        'constraint-1234' => 'https://cdn.tcms.io/somepath/test-constraint-1234.webp',
+    ];
+});
 
-final class MediaTest extends TestCase
-{
-    #[Test]
-    public function itHaAMediaType(): void
-    {
-        $this->assertEquals('media', (new Media)->getType());
-    }
+it('simplifies constraint conversion', function () {
+    expect($this->media->constraintUrl)->toBe('https://cdn.tcms.io/somepath/test-constraint-1234.webp');
+});
 
-    #[Test]
-    public function itAutomaticallyLocatesTheFieldConstraint(): void
-    {
-        $model = new Media(['conversions' => [
-            'url' => 'https://foo.bar/image.webp',
-            'thumbnail' => 'https://foo.bar/image-thumbnail.webp',
-            'constraint-888' => 'https://foo.bar/image-constraint-888.webp',
-        ]]);
-
-        $this->assertEquals('https://foo.bar/image-constraint-888.webp', $model->constraint_url);
-    }
-
-    #[Test]
-    public function itReturnsNullWithoutAFieldConstraint(): void
-    {
-        $model = new Media(['conversions' => [
-            'url' => 'https://foo.bar/image.webp',
-            'thumbnail' => 'https://foo.bar/image-thumbnail.webp',
-        ]]);
-
-        $this->assertNull($model->constraint_url);
-    }
-}
+it('converts conversions to camel', function () {
+    expect($this->media->conversions)->toHaveKeys([
+        'tinyThumbnail',
+        'smallThumbnail',
+        'thumbnail',
+        'largeThumbnail',
+        'hugeThumbnail',
+        'constraint1234',
+    ]);
+});

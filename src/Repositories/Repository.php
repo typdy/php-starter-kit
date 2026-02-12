@@ -2,151 +2,57 @@
 
 declare(strict_types=1);
 
-namespace TypedCMS\PHPStarterKit\Repositories;
+namespace Typdy\StarterKit\Repositories;
 
-use RuntimeException;
-use Swis\JsonApi\Client\Error;
-use Swis\JsonApi\Client\Interfaces\DocumentInterface;
-use Swis\JsonApi\Client\Interfaces\ItemInterface;
-use Swis\JsonApi\Client\InvalidResponseDocument;
-use Swis\JsonApi\Client\Repository as BaseRepository;
-use TypedCMS\PHPStarterKit\Repositories\Concerns\DeterminesEndpoint;
-use TypedCMS\PHPStarterKit\StarterKit;
+use Override;
+use Typdy\StarterKit\Api\Contracts\Client;
+use Typdy\StarterKit\Concerns\HasBlueprint;
+use Typdy\StarterKit\Concerns\HasCollection;
+use Typdy\StarterKit\Concerns\HasProject;
+use Typdy\StarterKit\Models\Contracts\Construct;
+use Typdy\StarterKit\Repositories\Concerns\HasSignature;
+use Typdy\StarterKit\Repositories\Concerns\HasSynchronisedCrud;
+use Typdy\StarterKit\Repositories\Contracts\Collection;
+use Typdy\StarterKit\Repositories\Contracts\Replayable;
+use Typdy\StarterKit\Typdy;
 
-use function array_filter;
-use function array_unique;
-use function count;
-use function explode;
-use function implode;
-
-abstract class Repository extends BaseRepository
+/**
+ * @api
+ *
+ * @template TModel of Construct
+ */
+abstract class Repository implements Collection, Replayable
 {
-    use DeterminesEndpoint;
+    use HasBlueprint;
+    use HasCollection;
+    use HasProject;
+    use HasSignature;
 
     /**
-     * By default, repositories make requests to the delivery api. Set this to
-     * true if you wish to use the management api by default.
+     * @use HasSynchronisedCrud<TModel>
      */
-    protected bool $mapi = false;
+    use HasSynchronisedCrud;
 
-    /**
-     * @var array<string>
-     */
-    protected array $with = [];
-
-    public static function make(): static
+    public function __construct()
     {
-        return StarterKit::container(static::class);
+        $this->client = Typdy::container()->make(Client::class);
     }
 
-    /**
-     * @param array<string, mixed> $parameters
-     * @param array<string, mixed> $headers
-     */
-    public function all(array $parameters = [], array $headers = []): DocumentInterface
+    #[Override]
+    final public function getEndpoint(): string
     {
-        $parameters += ['all' => true];
+        $endpoint = '@' . $this->getTeam() . '/' . $this->getProject() . '/';
 
-        return $this->handleErrors(parent::all($this->getParameters($parameters), $headers), strict: true);
-    }
-
-    /**
-     * @param array<string, mixed> $parameters
-     * @param array<string, mixed> $headers
-     */
-    public function take(array $parameters = [], array $headers = []): DocumentInterface
-    {
-        return $this->handleErrors(parent::take($this->getParameters($parameters), $headers), strict: true);
-    }
-
-    /**
-     * @param array<string, mixed> $parameters
-     * @param array<string, mixed> $headers
-     */
-    public function find(string $id, array $parameters = [], array $headers = []): DocumentInterface
-    {
-        return $this->handleErrors(parent::find($id, $this->getParameters($parameters), $headers));
-    }
-
-    /**
-     * @param array<string, mixed> $parameters
-     * @param array<string, mixed> $headers
-     */
-    public function findOrFail(string $id, array $parameters = [], array $headers = []): DocumentInterface
-    {
-        return $this->handleErrors(parent::find($id, $this->getParameters($parameters), $headers), fail: true);
-    }
-
-    /**
-     * @param array<string, mixed> $parameters
-     * @param array<string, mixed> $headers
-     */
-    public function save(ItemInterface $item, array $parameters = [], array $headers = []): DocumentInterface
-    {
-        $this->mapi();
-
-        return parent::save($item, $this->getParameters($parameters), $headers);
-    }
-
-    /**
-     * @param array<string, mixed> $parameters
-     * @param array<string, mixed> $headers
-     */
-    public function delete(string $id, array $parameters = [], array $headers = []): DocumentInterface
-    {
-        $this->mapi();
-
-        return parent::delete($id, $this->getParameters($parameters), $headers);
-    }
-
-    protected function handleErrors(
-        DocumentInterface $document,
-        bool $fail = false,
-        bool $strict = false,
-    ): DocumentInterface {
-
-        if ($document instanceof InvalidResponseDocument || $document->hasErrors()) {
-
-            if (!$strict && $document->getResponse()->getStatusCode() === 404) {
-
-                if ($fail) {
-                    $this->handle404Error($document);
-                }
-
-                return $document;
-            }
-
-            foreach ($document->getErrors() as $error) {
-                $this->logError($error);
-            }
-
-            throw new RuntimeException('Errors occurred whilst fetching data from the API.');
+        if ($this->mapi) {
+            return $endpoint . 'constructs/' . $this->getBlueprint();
         }
 
-        return $document;
+        return $endpoint . $this->getCollection();
     }
 
-    /**
-     * @param array<string, mixed> $parameters
-     *
-     * @return array<string, mixed>
-     */
-    protected function getParameters(array $parameters): array
+    #[Override]
+    final public function isGlobal(): false
     {
-        if (count($this->with) !== 0) {
-            $parameters['include'] = implode(',', array_filter(array_unique([
-                ...$this->with,
-                ...explode(',', $parameters['include'] ?? ''),
-            ])));
-        }
-
-        return $parameters;
+        return false;
     }
-
-    protected function handle404Error(DocumentInterface $document): void
-    {
-        throw new RuntimeException('The requested resource was not found.');
-    }
-
-    protected function logError(Error $error): void {}
 }

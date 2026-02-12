@@ -2,28 +2,61 @@
 
 declare(strict_types=1);
 
-namespace TypedCMS\PHPStarterKit\Models;
+namespace Typdy\StarterKit\Models;
 
-use Illuminate\Support\Arr;
+use Typdy\StarterKit\Attributes\Blueprint;
 
+use function array_filter;
+use function array_first;
 use function str_starts_with;
 
+use const ARRAY_FILTER_USE_BOTH;
+
 /**
- * @property-read string $name
- * @property-read string $url
- * @property-read object $conversions
- * @property-read array<string> $conversionsInProgress
- * @property-read string|null $constraintUrl
+ * @api
+ *
+ * @mago-ignore analysis:all
  */
+#[Blueprint('media')]
 class Media extends Model
 {
-    protected $type = 'media';
+    public ?string $name = null;
 
-    public function getConstraintUrlAttribute(): ?string
-    {
-        return Arr::first(
-            (array) $this->conversions,
-            static fn (string $url, string $name): bool => str_starts_with($name, 'constraint-'),
-        );
+    public ?string $url = null;
+
+    public ?object $conversions = null {
+        /**
+         * @param object|array<string, string>|null $value
+         */
+        set(object|array|null $value) {
+            if ($value === null) {
+                $this->conversions = null;
+
+                return;
+            }
+
+            $this->conversions = (object) $this->camelFields((array) $value);
+        }
+    }
+
+    /**
+     * @var list<string>
+     */
+    public array $conversionsInProgress = [];
+
+    public ?string $constraintUrl {
+        get {
+            if ($this->conversions === null) {
+                return null;
+            }
+
+            return array_first(
+                array_filter(
+                    (array) $this->conversions,
+                    static fn (string $url, string $name): bool => str_starts_with($name, 'constraint'),
+                    ARRAY_FILTER_USE_BOTH,
+                ),
+            );
+        }
     }
 }
