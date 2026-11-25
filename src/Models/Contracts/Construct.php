@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Typdy\StarterKit\Models\Contracts;
 
-use Carbon\Carbon;
+use Carbon\CarbonInterface;
 use Typdy\StarterKit\Parsers\Data\Resource;
 
 /**
@@ -28,9 +28,9 @@ interface Construct
      */
     public array $meta { get; set; }
 
-    public ?Carbon $created { set; }
+    public ?CarbonInterface $created { set; }
 
-    public ?Carbon $updated { set; }
+    public ?CarbonInterface $updated { set; }
 
     public function getBlueprint(): string;
 

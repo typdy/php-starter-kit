@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Typdy\StarterKit\Models;
 
-use Carbon\Carbon;
+use Carbon\CarbonImmutable;
+use Carbon\CarbonInterface;
 use InvalidArgumentException;
 use JsonSerializable;
 use Override;
@@ -42,20 +43,20 @@ abstract class Model implements TypdyModel, JsonSerializable
 
     public ?string $identifier = null;
 
-    public ?Carbon $created = null {
-        set(string|Carbon|null $value) {
+    public ?CarbonInterface $created = null {
+        set(string|CarbonInterface|null $value) {
             if ($value !== null) {
-                $this->created = Carbon::parse($value);
+                $this->created = CarbonImmutable::parse($value);
             }
 
             $this->created = null;
         }
     }
 
-    public ?Carbon $updated = null {
-        set(string|Carbon|null $value) {
+    public ?CarbonInterface $updated = null {
+        set(string|CarbonInterface|null $value) {
             if ($value !== null) {
-                $this->updated = Carbon::parse($value);
+                $this->updated = CarbonImmutable::parse($value);
             }
 
             $this->updated = null;
